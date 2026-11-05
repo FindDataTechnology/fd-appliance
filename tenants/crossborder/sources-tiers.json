@@ -1,0 +1,52 @@
+{
+  "sources": [
+    {
+      "source": "xb-baseline",
+      "tier": "ship_with",
+      "offline_availability": "随包基线切片（政策通报数+港口吞吐），断网即可查数/看板",
+      "update_mode": "全量包换代（v 递增）"
+    },
+    {
+      "source": "un-comtrade",
+      "tier": "online_increment",
+      "offline_availability": "随包仅基线切片；全量月度更新需出网或中转拉取",
+      "update_mode": "版本化增量包（日/月频）"
+    },
+    {
+      "source": "wto-eping",
+      "tier": "online_increment",
+      "offline_availability": "通报正文增量需出网；随包含通报计数基线",
+      "update_mode": "版本化增量包（日频）"
+    },
+    {
+      "source": "portwatch-imf",
+      "tier": "online_increment",
+      "offline_availability": "港口吞吐周更需出网；随包含吞吐基线切片",
+      "update_mode": "版本化增量包（周频）"
+    },
+    {
+      "source": "ecb-pboc",
+      "tier": "online_increment",
+      "offline_availability": "汇率日更需出网；随包含近 12 月汇率基线",
+      "update_mode": "版本化增量包（日频）"
+    },
+    {
+      "source": "mofcom",
+      "tier": "online_increment",
+      "offline_availability": "商务部政策正文需出网抓取；随包含条目索引基线",
+      "update_mode": "版本化增量包（日频）"
+    },
+    {
+      "source": "chinawuliu",
+      "tier": "online_increment",
+      "offline_availability": "物流运价指数需出网；随包含指数基线切片",
+      "update_mode": "版本化增量包（周频）"
+    },
+    {
+      "source": "merchant-internal",
+      "tier": "customer_collects",
+      "offline_availability": "不随包：内圈商家数据（订单/店铺），装后由客户完成商家授权（首发 TikTok Shop）自采",
+      "update_mode": "客户侧授权连接器，我方不代持凭证"
+    }
+  ]
+}

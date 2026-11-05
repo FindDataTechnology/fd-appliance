@@ -1,0 +1,24 @@
+{
+  "concept": "policy.notice_count",
+  "concept_id": 2401,
+  "unit": "通报数/月",
+  "frequency": "monthly",
+  "as_of": "2026-10",
+  "provenance": {
+    "source": "xb-baseline",
+    "stable_id": "yb.xb.policy.notice_count",
+    "as_of": "2026-11-04",
+    "verified_by": "合规分流舰 2026-11-04 双窗真跑（reports/2026-11-04-compliance-triage-fleet-live.md）"
+  },
+  "latest_month": {
+    "month": "2026-10",
+    "by_country": {
+      "CN": 1,
+      "JP": 3,
+      "AU": 11,
+      "CA": 12,
+      "BR": 15
+    }
+  },
+  "note": "供给口径纠偏记录：fd-info 无 wto-eping 源，真实供给=concept 2401（11-04 定谳）"
+}

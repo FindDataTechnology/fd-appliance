@@ -1,0 +1,11 @@
+{
+  "template": "xb-compliance-triage",
+  "title": "合规分流舰",
+  "base_url": "{{APPLIANCE_YIZUO_BASE}}",
+  "cadence": {"cron": "40 8 * * 2,4", "confirmed": true},
+  "positions": [
+    {"role": "triage", "preset": "xb-compliance-triage", "supply": "concept 2401 policy.notice_count（11-04 供给纠偏定谳口径）"}
+  ],
+  "windows": 2,
+  "escalation": "高风险通报（新禁限令/召回）转人工复核队列"
+}

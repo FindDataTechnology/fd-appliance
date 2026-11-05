@@ -1,0 +1,19 @@
+{
+  "concept": "port.calls",
+  "concept_id": 2402,
+  "unit": "船舶挂靠数",
+  "frequency": "weekly",
+  "provenance": {
+    "source": "xb-baseline",
+    "stable_id": "yb.xb.port.calls",
+    "as_of": "2026-11-04",
+    "verified_by": "物流监测舰 2026-11-04 真跑（reports/2026-11-04-logistics-watch-fleet-live.md，gap_in_series 实战验证）"
+  },
+  "ports": [
+    {"entity_id": 300966, "name_zh": "上海港", "max_date": "2026-09-25"},
+    {"entity_id": 300967, "name_zh": "洋山港", "max_date": "2026-09-25"},
+    {"entity_id": 300968, "name_zh": "蛇口港", "max_date": "2026-09-25"},
+    {"entity_id": 300969, "name_zh": "青岛港", "max_date": "2026-10-30"}
+  ],
+  "attribution_rule": "series_state 双态归因：never_held（从未持有）与 gap_in_series（序列内断档）分开陈述，严禁合并成「数据缺失」"
+}

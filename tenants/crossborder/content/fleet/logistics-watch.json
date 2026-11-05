@@ -1,0 +1,11 @@
+{
+  "template": "xb-logistics-watch",
+  "title": "港口物流监测舰",
+  "base_url": "{{APPLIANCE_YIZUO_BASE}}",
+  "cadence": {"cron": "0 9 * * 1", "confirmed": true},
+  "positions": [
+    {"role": "scout", "preset": "xb-logistics-scout", "sources": ["portwatch-imf", "chinawuliu"]},
+    {"role": "steward", "preset": "xb-data-steward", "rule": "series_state 双态归因：never_held / gap_in_series 分开陈述"}
+  ],
+  "watched_ports": [300966, 300967, 300968, 300969]
+}

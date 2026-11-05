@@ -1,0 +1,53 @@
+{
+  "components": [
+    {
+      "name": "xb-data-slice-policy",
+      "kind": "data",
+      "class": "packable",
+      "note": "政策通报数基线切片（concept 2401，2026-11-04 三舰真跑验真口径）",
+      "scan_files": ["content/xb_policy_notice_counts.json"]
+    },
+    {
+      "name": "xb-data-slice-ports",
+      "kind": "data",
+      "class": "packable",
+      "note": "港口吞吐基线切片（concept 2402，双态归因口径）",
+      "scan_files": ["content/xb_port_calls.json"]
+    },
+    {
+      "name": "xb-fleet-templates",
+      "kind": "fleet",
+      "class": "packable",
+      "note": "政策盯梢舰岗位模板，端点走 {{APPLIANCE_YIZUO_BASE}} 占位",
+      "scan_files": ["content/fleet/policy-watch.json"]
+    },
+    {
+      "name": "xb-fleet-templates-logistics",
+      "kind": "fleet",
+      "class": "packable",
+      "note": "物流监测舰岗位模板",
+      "scan_files": ["content/fleet/logistics-watch.json"]
+    },
+    {
+      "name": "xb-fleet-templates-compliance",
+      "kind": "fleet",
+      "class": "packable",
+      "note": "合规分流舰岗位模板",
+      "scan_files": ["content/fleet/compliance-triage.json"]
+    },
+    {
+      "name": "xb-skills",
+      "kind": "skills",
+      "class": "packable",
+      "note": "行业线技能（政策分流/双态归因）",
+      "scan_files": ["content/skills/xb-dual-state-attribution.md"]
+    },
+    {
+      "name": "token-gateway-openai",
+      "kind": "llm",
+      "class": "cloud_locked",
+      "substitute": "客户自带内网 LLM 网关（装后配置，不入包）",
+      "note": "公网大模型网关：客户机房不可用，严禁随包"
+    }
+  ]
+}

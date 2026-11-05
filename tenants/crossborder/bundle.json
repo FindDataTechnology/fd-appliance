@@ -1,0 +1,33 @@
+{
+  "tenant": "crossborder",
+  "version": "1.0.0",
+  "as_of": "2026-11-04",
+  "components": [
+    {
+      "name": "xb-data-slice-policy",
+      "path": "content/xb_policy_notice_counts.json",
+      "provenance": {"source": "xb-baseline", "stable_id": "yb.xb.policy.notice_count", "as_of": "2026-11-04"}
+    },
+    {
+      "name": "xb-data-slice-ports",
+      "path": "content/xb_port_calls.json",
+      "provenance": {"source": "xb-baseline", "stable_id": "yb.xb.port.calls", "as_of": "2026-11-04"}
+    },
+    {
+      "name": "xb-fleet-templates",
+      "path": "content/fleet/policy-watch.json"
+    },
+    {
+      "name": "xb-fleet-templates-logistics",
+      "path": "content/fleet/logistics-watch.json"
+    },
+    {
+      "name": "xb-fleet-templates-compliance",
+      "path": "content/fleet/compliance-triage.json"
+    },
+    {
+      "name": "xb-skills",
+      "path": "content/skills/xb-dual-state-attribution.md"
+    }
+  ]
+}
