@@ -5,8 +5,10 @@
 1. **注册表分类**（继承 lex packer 先例）：bundle 组件清单里出现
    ``cloud_locked`` 或未登记组件 = 违规。
 2. **公网硬地址扫描**（appliance 泛化新增）：组件声明的 scan_files 文本里
-   出现「非内网」主机名 = 违规。内网白名单=RFC1918/链路本地/tailnet 100.64/10/
-   localhost/``.svc``/``.cluster.local``/``.local``/``.internal`` + 租户 allow_hosts。
+   出现「非内网」主机名 = 违规。覆盖带 scheme 的 URL 与无 scheme 的
+   ``KEY=host[:port]``（.env 常见写法）。内网白名单=RFC1918/链路本地/tailnet
+   100.64/10/localhost/``.svc``/``.cluster.local``/``.local``/``.internal``/
+   同命名空间裸服务名（无点单标签）+ 租户 allow_hosts。
 
 违规信息 SHALL 给出降级/内网化修法（spec 场景「点名该依赖并拒绝出包，给出修法」）。
 """
@@ -28,6 +30,20 @@ FIX_INTRANET = "改为内网化端点（{host}→内网服务/随包数据），
 
 # http(s)://host 与裸 host 形式（含常见云厂商域名后缀）
 _URL_RE = re.compile(r"https?://([^\s\"'<>{}|\\^`\[\]]+)", re.I)
+# 无 scheme 的 env 写法：KEY=host[:port]（.env 最常见，如 OPENAI_BASE=api.openai.com）。
+# 只取等号右侧的 host 段，与 _URL_RE 命中走同一个内网过滤；不扫全文本的裸点词，
+# 否则 `stable_id: demo.data` / `pack.json` 这类标识符会大量误报（误报会逼人放宽 allow_hosts）。
+_BARE_HOST_RE = re.compile(
+    r"[A-Za-z_][A-Za-z0-9_]*\s*=\s*[\"']?([A-Za-z0-9_.-]+)(?::\d+)?(?=[\s\"',;/]|$)"
+)
+# 裸值形状：带「字母 TLD」的多段主机名（v1.2.3 这类版本号不算），或点分 IPv4。
+_HOSTNAME_RE = re.compile(r"(?:[a-z0-9-]+\.)+[a-z]{2,}", re.I)
+_FILE_SUFFIXES = (
+    ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".txt", ".md",
+    ".env", ".log", ".db", ".sqlite", ".csv", ".py", ".sh", ".js", ".ts", ".lock",
+    ".pem", ".crt", ".key",
+)
+_TAILNET = ipaddress.ip_network("100.64.0.0/10")
 _CLOUD_SUFFIXES = (
     ".amazonaws.com", ".aliyuncs.com", ".azure.com", ".googleapis.com",
     ".tencentyun.com", ".qcloud.com", ".huaweicloud.com", ".openai.com",
@@ -58,27 +74,44 @@ def _is_internal_host(host: str, allow: set[str]) -> bool:
         return True
     try:
         ip = ipaddress.ip_address(host)
-        return ip.is_private or ip.is_loopback or ip.is_link_local
     except ValueError:
-        pass
-    # tailnet CGNAT 100.64.0.0/10 视作内网
+        # 裸主机名（无点，如 compose/k8s 同命名空间的 postgres/api/redis）按约定视为内网：
+        # 公网主机名必带点，单标签只能靠本地 search domain 解析，不会掩盖真实外泄。
+        return "." not in host
+    # IP 全部在这里判定（含 tailnet CGNAT 100.64.0.0/10 —— is_private 不含该段）。
+    return ip.is_private or ip.is_loopback or ip.is_link_local or ip in _TAILNET
+
+
+def _is_ip(text: str) -> bool:
     try:
-        return ipaddress.ip_address(host) in ipaddress.ip_network("100.64.0.0/10")
+        ipaddress.ip_address(text)
     except ValueError:
         return False
+    return True
 
 
 def _scan_text(text: str, allow: set[str]) -> list[str]:
     """返回文本中命中的公网硬依赖主机名（去重保序）。"""
     found: list[str] = []
-    for m in _URL_RE.finditer(text):
-        netloc = m.group(1)
-        host = urlparse("http://" + netloc).hostname or ""
+
+    def hit(host: str) -> None:
+        host = host.strip(".").lower()
         if not host:
-            continue
-        if host.lower().endswith(_CLOUD_SUFFIXES) or not _is_internal_host(host, allow):
+            return
+        if host.endswith(_CLOUD_SUFFIXES) or not _is_internal_host(host, allow):
             if host not in found:
                 found.append(host)
+
+    for m in _URL_RE.finditer(text):
+        hit(urlparse("http://" + m.group(1)).hostname or "")
+    # 无 scheme 的 KEY=host[:port]（裸 host 形式，docstring 承诺覆盖的那一类）
+    for m in _BARE_HOST_RE.finditer(text):
+        host = m.group(1).strip(".").lower()
+        if host.endswith(_FILE_SUFFIXES):
+            continue
+        if not (_HOSTNAME_RE.fullmatch(host) or _is_ip(host)):
+            continue  # 非主机形状（版本号/单词/标识符）不误报
+        hit(host)
     return found
 
 

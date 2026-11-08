@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from appliance_packer.errors import GuardViolationError
-from appliance_packer.guard import assert_packable, check_bundle
+from appliance_packer.guard import _scan_text, assert_packable, check_bundle
 from appliance_packer.registry import ComponentRegistry
 
 
@@ -56,3 +56,27 @@ def test_allow_hosts_override(tmp_path):
 def test_clean_bundle_passes(demo_tenant):
     report = assert_packable(_registry(demo_tenant), ["data-slice", "fleet-cfg"], demo_tenant)
     assert report.ok
+
+
+def test_bare_host_without_scheme_is_scanned():
+    # .env 最常见的写法没有 scheme：守卫承诺覆盖裸 host，这条用例锁住该不变量
+    assert _scan_text("OPENAI_BASE=api.openai.com", set()) == ["api.openai.com"]
+    assert _scan_text('OPENAI_BASE="api.openai.com:443/v1"', set()) == ["api.openai.com"]
+
+
+def test_internal_hosts_not_flagged():
+    # 同命名空间裸服务名 / tailnet CGNAT / 链路本地都不该被当成公网
+    assert _scan_text("DB=http://postgres:5432", set()) == []
+    assert _scan_text("DB=postgres:5432", set()) == []
+    assert _scan_text("TAILNET=http://100.64.1.5:8080", set()) == []
+    assert _scan_text("META=http://169.254.169.254/latest", set()) == []
+
+
+def test_identifier_shapes_not_flagged():
+    # 版本号 / 文件名 / 日期不是主机名，误报会逼人放宽 allow_hosts
+    for text in ("VERSION=v1.2.3", "LOG=app.json", "AS_OF=2026-11", "CONFIG=/etc/app.json"):
+        assert _scan_text(text, set()) == [], text
+
+
+def test_allow_hosts_still_overrides_bare_host():
+    assert _scan_text("PARTNER=tenant-partner.example.com", {"tenant-partner.example.com"}) == []
