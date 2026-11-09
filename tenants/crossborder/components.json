@@ -1,53 +1,110 @@
 {
-  "components": [
-    {
-      "name": "xb-data-slice-policy",
-      "kind": "data",
-      "class": "packable",
-      "note": "政策通报数基线切片（concept 2401，2026-11-04 三舰真跑验真口径）",
-      "scan_files": ["content/xb_policy_notice_counts.json"]
-    },
-    {
-      "name": "xb-data-slice-ports",
-      "kind": "data",
-      "class": "packable",
-      "note": "港口吞吐基线切片（concept 2402，双态归因口径）",
-      "scan_files": ["content/xb_port_calls.json"]
-    },
-    {
-      "name": "xb-fleet-templates",
-      "kind": "fleet",
-      "class": "packable",
-      "note": "政策盯梢舰岗位模板，端点走 {{APPLIANCE_YIZUO_BASE}} 占位",
-      "scan_files": ["content/fleet/policy-watch.json"]
-    },
-    {
-      "name": "xb-fleet-templates-logistics",
-      "kind": "fleet",
-      "class": "packable",
-      "note": "物流监测舰岗位模板",
-      "scan_files": ["content/fleet/logistics-watch.json"]
-    },
-    {
-      "name": "xb-fleet-templates-compliance",
-      "kind": "fleet",
-      "class": "packable",
-      "note": "合规分流舰岗位模板",
-      "scan_files": ["content/fleet/compliance-triage.json"]
-    },
-    {
-      "name": "xb-skills",
-      "kind": "skills",
-      "class": "packable",
-      "note": "行业线技能（政策分流/双态归因）",
-      "scan_files": ["content/skills/xb-dual-state-attribution.md"]
-    },
-    {
-      "name": "token-gateway-openai",
-      "kind": "llm",
-      "class": "cloud_locked",
-      "substitute": "客户自带内网 LLM 网关（装后配置，不入包）",
-      "note": "公网大模型网关：客户机房不可用，严禁随包"
-    }
-  ]
+ "components": [
+  {
+   "name": "xb-data-slice-policy",
+   "kind": "data",
+   "class": "packable",
+   "note": "政策通报数基线切片（concept 2401，2026-11-04 三舰真跑验真口径）",
+   "scan_files": [
+    "content/xb_policy_notice_counts.json"
+   ]
+  },
+  {
+   "name": "xb-data-slice-ports",
+   "kind": "data",
+   "class": "packable",
+   "note": "港口吞吐基线切片（concept 2402，双态归因口径）",
+   "scan_files": [
+    "content/xb_port_calls.json"
+   ]
+  },
+  {
+   "name": "xb-fleet-templates",
+   "kind": "fleet",
+   "class": "packable",
+   "note": "政策盯梢舰岗位模板，端点走 {{APPLIANCE_YIZUO_BASE}} 占位",
+   "scan_files": [
+    "content/fleet/policy-watch.json"
+   ]
+  },
+  {
+   "name": "xb-fleet-templates-logistics",
+   "kind": "fleet",
+   "class": "packable",
+   "note": "物流监测舰岗位模板",
+   "scan_files": [
+    "content/fleet/logistics-watch.json"
+   ]
+  },
+  {
+   "name": "xb-fleet-templates-compliance",
+   "kind": "fleet",
+   "class": "packable",
+   "note": "合规分流舰岗位模板",
+   "scan_files": [
+    "content/fleet/compliance-triage.json"
+   ]
+  },
+  {
+   "name": "xb-fleet-templates-recon",
+   "kind": "fleet",
+   "class": "packable",
+   "note": "跨境电商对账舰队模板（巡检/核对/拍板三岗；add-erp-vertical-templates 四件套之一）",
+   "scan_files": [
+    "content/fleet/recon-fleet.json"
+   ]
+  },
+  {
+   "name": "xb-erp-connector-pack",
+   "kind": "erp-template",
+   "class": "packable",
+   "note": "跨境对账连接器 pack（Shopify 已采纳读面 + 国内平台实测只读面；BYOK 装后注入不入包）",
+   "scan_files": [
+    "content/erp-templates/crossborder-connector-pack.json"
+   ]
+  },
+  {
+   "name": "xb-erp-account-mapping-pack",
+   "kind": "erp-template",
+   "class": "packable",
+   "note": "跨境科目映射 pack（呈现层对齐内核通用科目最小集；替换映射不改账）",
+   "scan_files": [
+    "content/erp-templates/crossborder-account-mapping-pack.json"
+   ]
+  },
+  {
+   "name": "xb-erp-report-preset",
+   "kind": "erp-template",
+   "class": "packable",
+   "note": "跨境报表 preset（店铺对账日报/费用/映射看板）",
+   "scan_files": [
+    "content/erp-templates/crossborder-report-preset.json"
+   ]
+  },
+  {
+   "name": "xb-erp-capability-matrix",
+   "kind": "erp-template",
+   "class": "packable",
+   "note": "电商能力矩阵（平台×流 → 可得/不提供/需一次接入 + 证据 + 复核窗；报表腿与对账腿数由它派生）",
+   "scan_files": [
+    "content/erp-templates/crossborder-capability-matrix.json"
+   ]
+  },
+  {
+   "name": "xb-skills",
+   "kind": "skills",
+   "class": "packable",
+   "note": "行业线技能（政策分流/双态归因）",
+   "scan_files": [
+    "content/skills/xb-dual-state-attribution.md"
+   ]
+  },
+  {
+   "name": "token-gateway-openai",
+   "kind": "llm",
+   "class": "cloud_locked",
+   "substitute": "客户自带内网 LLM 网关（装后配置，不入包）",
+   "note": "公网大模型网关：客户机房不可用，严禁随包"
+  }
+ ]
 }
