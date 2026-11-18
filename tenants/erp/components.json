@@ -1,0 +1,113 @@
+{
+  "components": [
+    {
+      "name": "erp-ledger-kernel",
+      "kind": "service",
+      "class": "packable",
+      "note": "ERP 账本内核 MCP 服务（fd-erp-ledger-mcp）：自包含、离线可跑——账与库全在客户机房本地 Postgres（回环/内网名），借贷必平由数据库约束触发器强制，32 个工具面对公网零依赖零回连；资金二清/开票合规守界见随包 README，平台不做资金执行、不自研开票",
+      "scan_files": [
+        "content/erp-ledger-kernel.README.md"
+      ]
+    },
+    {
+      "name": "erp-chart-of-accounts-seed",
+      "kind": "data",
+      "class": "packable",
+      "note": "最小通用科目表基线种子（行业无关）：断网即可载入建账；科目映射 pack 归模板 change，本包不含行业模板",
+      "scan_files": [
+        "content/chart-of-accounts.seed.json"
+      ]
+    },
+    {
+      "name": "erp-fx-baseline",
+      "kind": "data",
+      "class": "packable",
+      "note": "ecb-exr 观测流近 12 月汇率基线切片（示例最小集，含汇率/as_of/出处）：断网供原币→本位币折算基线；无出处汇率一律拒绝使用",
+      "scan_files": [
+        "content/fx-baseline.seed.json"
+      ]
+    },
+    {
+      "name": "external-llm-gateway",
+      "kind": "llm",
+      "class": "cloud_locked",
+      "substitute": "客户自带内网 LLM 网关（装后配置 BYOK；凭证经环境变量注入，零落库零日志，不入包）",
+      "note": "公网大模型 SaaS 网关：客户机房断网不可用，严禁随包；内核 32 个工具面离线闭环，不依赖此网关",
+      "scan_files": [
+        "content/external-llm-gateway.NOTICE.md"
+      ]
+    },
+    {
+      "name": "ecb-exr-live-feed",
+      "kind": "feed",
+      "class": "cloud_locked",
+      "substitute": "在线增量档：随包仅汇率基线切片，日更增量走客户侧出网或中转拉取后离线导入（不随包）",
+      "note": "ecb-exr 实时汇率公网观测流：客户机房断网不可用，严禁随包；实时抓取能力归 online_increment 档，不在整机包内",
+      "scan_files": [
+        "content/ecb-exr-live-feed.NOTICE.md"
+      ]
+    },
+    {
+      "name": "postgres",
+      "kind": "service",
+      "class": "packable",
+      "note": "客户机房本地 PostgreSQL：账本内核 + 壹座会话/配置的持久化底座（首版同实例分库，客户有 DBA 时可拆）。容器化随包；备份沿用 erp-ledger-backup 的路子做一键脚本；不做主从/高可用，与 vertical-appliance-delivery 既有验收对齐"
+    },
+    {
+      "name": "paas",
+      "kind": "product",
+      "class": "packable",
+      "note": "壹座产品宿主（单进程 server.js + dsh 运行时 + web/dist）：客户能登录、能对话、能看团队运行态的唯一边界。与共享部署同一份代码，机房版只差部署形态（AUTH_MODE 本地或客户 IdP、PLATFORM_DATA_DIR 指客户盘、租户为常量），不叉第二套界面"
+    }
+  ],
+  "minimal_form": {
+    "note": "首版可交付的最低集（vertical-appliance-delivery「首次交付的最小可用形态可界定」）。判据对象是交付包（bundle）而非组件注册表：登记不等于包里有。缺任一 required 项即不成立。",
+    "required": [
+      {
+        "name": "postgres",
+        "why": "内核账本与壹座会话/配置的持久化底座"
+      },
+      {
+        "name": "paas",
+        "why": "产品宿主：登录 / 对话 / 团队 / 看板"
+      },
+      {
+        "name": "erp-ledger-kernel",
+        "why": "账本内核 MCP（32 工具面，离线闭环）"
+      },
+      {
+        "name": "dsh-runtime",
+        "provided_by": "paas",
+        "why": "执行宿主由 paas 的 server.js spawn，随同镜像，非独立组件"
+      }
+    ],
+    "optional": [
+      {
+        "name": "fd-erp-vertical-api",
+        "when": "有页面集（pagesets）需求时；未登记为组件，首版不含"
+      },
+      {
+        "name": "erp-chart-of-accounts-seed",
+        "when": "行业科目映射 pack 归模板 change，本包只含最小通用科目表"
+      },
+      {
+        "name": "erp-fx-baseline",
+        "when": "无随包基线时折算按客户自备汇率，须带出处"
+      }
+    ],
+    "cloud_locked": [
+      {
+        "name": "external-llm-gateway",
+        "degrades_to": "断网时对话与团队运行不可用，数据面与账务读取照常"
+      },
+      {
+        "name": "ecb-exr-live-feed",
+        "degrades_to": "断网时沿用随包 12 月汇率基线，日更增量走在线增量档"
+      }
+    ],
+    "product_surface": {
+      "component": "paas",
+      "criterion": "客户能登录；能与智能体对话（有网）；能查看其团队的运行态（成员/报数/待拍板项）"
+    }
+  }
+}

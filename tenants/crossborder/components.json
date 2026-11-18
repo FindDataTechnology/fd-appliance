@@ -105,6 +105,92 @@
    "class": "cloud_locked",
    "substitute": "客户自带内网 LLM 网关（装后配置，不入包）",
    "note": "公网大模型网关：客户机房不可用，严禁随包"
+  },
+  {
+   "name": "postgres",
+   "kind": "service",
+   "class": "packable",
+   "note": "客户机房本地 PostgreSQL：账本内核 + 壹座会话/配置的持久化底座（首版同实例分库，客户有 DBA 时可拆）。容器化随包；备份沿用 erp-ledger-backup 的路子做一键脚本；不做主从/高可用，与 vertical-appliance-delivery 既有验收对齐"
+  },
+  {
+   "name": "paas",
+   "kind": "product",
+   "class": "packable",
+   "note": "壹座产品宿主（单进程 server.js + dsh 运行时 + web/dist）：客户能登录、能对话、能看团队运行态的唯一边界。与共享部署同一份代码，机房版只差部署形态（AUTH_MODE 本地或客户 IdP、PLATFORM_DATA_DIR 指客户盘、租户为常量），不叉第二套界面"
   }
- ]
+ ],
+ "minimal_form": {
+  "note": "首版可交付的最低集。跨境线目前 12 个组件里 0 个 UI，缺口与 erp 同型：全是资产与服务。判据对象是交付包（bundle）。",
+  "required": [
+   {
+    "name": "postgres",
+    "why": "壹座会话/配置与行业数据落地的持久化底座"
+   },
+   {
+    "name": "paas",
+    "why": "产品宿主：登录 / 对话 / 团队 / 看板"
+   },
+   {
+    "name": "dsh-runtime",
+    "provided_by": "paas",
+    "why": "执行宿主由 paas 的 server.js spawn，随同镜像，非独立组件"
+   },
+   {
+    "name": "xb-erp-connector-pack",
+    "why": "接客户自有 ERP 的连接器，跨境团队干活的最小前提"
+   }
+  ],
+  "optional": [
+   {
+    "name": "xb-data-slice-policy",
+    "when": "需要政策通报基线时（随包切片，断网可读）"
+   },
+   {
+    "name": "xb-data-slice-ports",
+    "when": "需要港口吞吐基线时（随包切片，断网可读）"
+   },
+   {
+    "name": "xb-fleet-templates",
+    "when": "跨境通用舰队模板"
+   },
+   {
+    "name": "xb-fleet-templates-logistics",
+    "when": "物流行业线"
+   },
+   {
+    "name": "xb-fleet-templates-compliance",
+    "when": "合规行业线"
+   },
+   {
+    "name": "xb-fleet-templates-recon",
+    "when": "对账行业线"
+   },
+   {
+    "name": "xb-erp-account-mapping-pack",
+    "when": "客户科目与内核科目映射"
+   },
+   {
+    "name": "xb-erp-report-preset",
+    "when": "报表预设"
+   },
+   {
+    "name": "xb-erp-capability-matrix",
+    "when": "能力矩阵口径"
+   },
+   {
+    "name": "xb-skills",
+    "when": "跨境技能集"
+   }
+  ],
+  "cloud_locked": [
+   {
+    "name": "token-gateway-openai",
+    "degrades_to": "断网时对话与团队运行不可用，数据面与账务读取照常；客户可配 BYOK 内网网关替代"
+   }
+  ],
+  "product_surface": {
+   "component": "paas",
+   "criterion": "客户能登录；能与智能体对话（有网）；能查看其团队的运行态（成员/报数/待拍板项）"
+  }
+ }
 }

@@ -1,0 +1,15 @@
+{
+  "schema": "erp.minimal-chart-of-accounts/v1",
+  "base_currency": "CNY",
+  "as_of": "2026-11-07",
+  "note": "行业无关最小通用科目集（首发基线种子，断网即可载入建账）；科目映射 pack 归 add-erp-vertical-templates change，本包不含任何行业模板；借贷必平由库约束强制，不在此文件内声明余额",
+  "accounts": [
+    {"code": "1001", "name": "库存现金", "category": "asset", "normal_balance": "debit"},
+    {"code": "1002", "name": "银行存款", "category": "asset", "normal_balance": "debit"},
+    {"code": "1122", "name": "应收账款", "category": "asset", "normal_balance": "debit"},
+    {"code": "2202", "name": "应付账款", "category": "liability", "normal_balance": "credit"},
+    {"code": "4001", "name": "实收资本", "category": "equity", "normal_balance": "credit"},
+    {"code": "6001", "name": "主营业务收入", "category": "revenue", "normal_balance": "credit"},
+    {"code": "6401", "name": "主营业务成本", "category": "expense", "normal_balance": "debit"}
+  ]
+}

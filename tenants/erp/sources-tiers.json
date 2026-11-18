@@ -1,0 +1,34 @@
+{
+  "sources": [
+    {
+      "source": "erp-coa-baseline",
+      "tier": "ship_with",
+      "offline_availability": "最小通用科目表基线种子随全量包入包，断网即可载入建账（行业无关最小集）",
+      "update_mode": "全量包换代（v 递增）；科目映射 pack 归 add-erp-vertical-templates change"
+    },
+    {
+      "source": "erp-fx-baseline",
+      "tier": "ship_with",
+      "offline_availability": "ecb-exr 观测流近 12 月汇率基线切片（含汇率/as_of/出处）随包，断网供原币→本位币折算基线；为基线示例值，非实时报价",
+      "update_mode": "全量包换代（v 递增）"
+    },
+    {
+      "source": "ecb-exr-fx-observations",
+      "tier": "online_increment",
+      "offline_availability": "随包仅近 12 月汇率基线；日更汇率观测需客户侧出网或中转拉取，断网时沿用随包基线，无出处汇率一律拒绝使用",
+      "update_mode": "版本化增量包（日频）"
+    },
+    {
+      "source": "merchant-two-source-flows",
+      "tier": "customer_collects",
+      "offline_availability": "不随包不增量：客户自有两源交易流水（如平台账单 + 自有收单/ERP 流水），装后由客户在自有内网接入并对账；平台只读滩头对齐、对外部系统零写入，我方不代持数据",
+      "update_mode": "客户侧源适配器自采，我方不代持、不落库"
+    },
+    {
+      "source": "merchant-byok-credentials",
+      "tier": "customer_collects",
+      "offline_availability": "不随包：BYOK 凭证为客户自持，永不出包、永不由我方持有（credentials are customer-held, never shipped）；经环境变量注入运行进程，零落库零日志，断网可用",
+      "update_mode": "客户自持凭证 + 环境变量注入（我方不代持、不运输、不存储）"
+    }
+  ]
+}

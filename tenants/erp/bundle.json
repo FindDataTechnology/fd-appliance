@@ -1,0 +1,21 @@
+{
+  "tenant": "erp",
+  "version": "1.0.0",
+  "as_of": "2026-11-07",
+  "components": [
+    {
+      "name": "erp-ledger-kernel",
+      "path": "content/erp-ledger-kernel.README.md"
+    },
+    {
+      "name": "erp-chart-of-accounts-seed",
+      "path": "content/chart-of-accounts.seed.json",
+      "provenance": {"source": "erp-coa-baseline", "stable_id": "erp.coa.minimal.generic.v1", "as_of": "2026-11-07"}
+    },
+    {
+      "name": "erp-fx-baseline",
+      "path": "content/fx-baseline.seed.json",
+      "provenance": {"source": "erp-fx-baseline", "stable_id": "erp.fx.baseline.ecb-exr.12m", "as_of": "2026-11-07"}
+    }
+  ]
+}

@@ -34,7 +34,9 @@ from .manifest import (
     write_manifest,
 )
 from .manifest_io import load_json
+from .install import plan, run_install
 from .registry import ComponentRegistry
+from .surface import check_minimal_form, check_product_surface
 from .tiers import assert_sources_declared, load_source_tiers, tiers_note
 from .verify import verify_pack_dir
 
@@ -130,6 +132,34 @@ def _cmd_equivalence(args: argparse.Namespace) -> int:
     return 1
 
 
+def _cmd_surface(args: argparse.Namespace) -> int:
+    """售前/构建期判据：交付包是否构成可用的产品（含可登录产品面 + 必需项齐）。"""
+    tenant_dir = Path(args.tenant_dir)
+    form = check_minimal_form(tenant_dir)
+    report = check_product_surface(tenant_dir)
+    for name in report.present:
+        print(f"[ok ] required  {name}")
+    for name in report.required:
+        if name not in report.present:
+            print(f"[MISS] required  {name}")
+    for v in form + report.violations:
+        print(f"[FAIL] {v}")
+    if form or not report.ok:
+        print(f"SURFACE REFUSED {report.tenant}")
+        return 2
+    print(f"SURFACE PASS {report.tenant} (product surface: {report.present})")
+    return 0
+
+
+def _cmd_install(args: argparse.Namespace) -> int:
+    steps = plan()
+    if args.dry_run:
+        for index, step in enumerate(steps, start=1):
+            print(f"[{index}/{len(steps)}] {step.name}: {step.command}")
+        return 0
+    return 0 if run_install(steps) == 0 else 2
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="appliance_packer", description="行业线整机交付包构建器")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -153,6 +183,14 @@ def main(argv: list[str] | None = None) -> int:
     e = sub.add_parser("equivalence", help="同源核对：base+增量 == 目标全量")
     e.add_argument("installed"); e.add_argument("target_full")
     e.set_defaults(fn=_cmd_equivalence)
+
+    i2 = sub.add_parser("install", help="装机编排：PG 就绪→migrate→种子→paas→健康检查（失败点名中止）")
+    i2.add_argument("--dry-run", action="store_true", help="只打印步骤与命令，不执行")
+    i2.set_defaults(fn=_cmd_install)
+
+    s = sub.add_parser("surface", help="判据：交付包是否构成可用的产品（含可登录产品面）")
+    s.add_argument("tenant_dir")
+    s.set_defaults(fn=_cmd_surface)
 
     args = p.parse_args(argv)
     try:
