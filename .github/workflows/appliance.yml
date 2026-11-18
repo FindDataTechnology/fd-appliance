@@ -38,6 +38,11 @@ jobs:
     env:
       ERP_LEDGER_PASSWORD: ci-not-a-secret
       ERP_TENANT_ID: acme
+      # base compose 里这两个是必填插值（交付现场指向随包的源码树）。override 会
+      # 把 build.context 换掉，但插值发生在合并之前——不给值连解析都过不去。
+      # 相对路径按 project dir（tenants/erp，由 -f 的第一个文件决定）。
+      KERNEL_SRC: ../../ci
+      PAAS_SRC: ../../ci
     steps:
       - uses: actions/checkout@v4
 
