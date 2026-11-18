@@ -82,6 +82,13 @@ services:
       # 机房版形态：不设 AUTH_MODE（默认 none）、不设 CLOUD_MODE。
       # 2026-11-18 已用真机形态实测这四个面全部可用（design D1）。
       PLATFORM_DATA_DIR: /data
+      # 部署归属声明（paas change single-tenant-model-lane D1）：本实例属于
+      # **一个客户**，不是多人共用的一套服务。它决定「客户绑定自己的词元账号后，
+      # 模型请求记在谁账上」：
+      #   设了  → 绑定的账号 key 进入模型车道，计费记在客户自己的词元额度上
+      #   不设  → 按共享形态处理（绑定只用于运维工具，模型仍走部署 key）
+      # 判反的代价不对称，所以缺省是「不生效」。**一个客户一个实例才设它。**
+      SINGLE_TENANT: "1"
       ERP_API_UPSTREAM: ${ERP_API_UPSTREAM:-http://erp-vertical-api:8000}
       ERP_TENANT_ID: ${ERP_TENANT_ID}
       # 代理默认开。要转发就必须有上游，而**上游不是内核**：内核只暴露 /mcp 与
