@@ -98,13 +98,8 @@ jobs:
       - name: 3.1 装机编排点名失败（真 docker 上验一次）
         run: |
           set -eux
-          C="docker compose -f tenants/erp/compose.yaml -f ci/offline-override.yaml"
-          cd tenants/erp
-          $C down -v
-          docker network rm appliance-ci || true
-          # PG 没起时跑 migrate 必须点名 kernel-migrate 并中止。
-          # 用 APPLIANCE_STEP_POSTGRES=true 跳过第一步，让它走到 migrate 去撞空库。
-          cd ../..
+          # 这里故意让 PG 起不来：要验的正是「失败时点名并中止」。
+          # APPLIANCE_STEP_POSTGRES=true 跳过第一步，让第二步 migrate 去撞不存在的库。
           set +e
           APPLIANCE_STEP_POSTGRES=true PYTHONPATH=. python -m appliance_packer install > /tmp/install.log 2>&1
           rc=$?
