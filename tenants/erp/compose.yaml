@@ -82,8 +82,14 @@ services:
       # 机房版形态：不设 AUTH_MODE（默认 none）、不设 CLOUD_MODE。
       # 2026-11-18 已用真机形态实测这四个面全部可用（design D1）。
       PLATFORM_DATA_DIR: /data
-      ERP_API_UPSTREAM: http://kernel-serve:8000
+      ERP_API_UPSTREAM: ${ERP_API_UPSTREAM:-http://erp-vertical-api:8000}
       ERP_TENANT_ID: ${ERP_TENANT_ID}
+      # 代理默认开。要转发就必须有上游，而**上游不是内核**：内核只暴露 /mcp 与
+      # /health，`/erp/supply-chain/v1/pagesets` 这类读接口属于纵向 API
+      # （fd-erp-vertical-api）。2026-11-18 真机实测：把 upstream 指到 kernel-serve
+      # 会让每个 ERP 读接口 404——那是真机才会暴露的配置错，本地 compose 验不出来。
+      # 只做账、不做页面集的交付：设 ERP_API_PROXY_ENABLED=0。
+      ERP_API_PROXY_ENABLED: ${ERP_API_PROXY_ENABLED:-1}
       # 多租户时再加 ERP_API_UPSTREAM_MAP；单租户留空 = 与共享部署的单上游路径逐字节相同
       ERP_API_UPSTREAM_MAP: ${ERP_API_UPSTREAM_MAP:-}
       # LLM 是 cloud_locked：不配即 models:[]，对话不可用但产品面照常（如实降级，不冒充）
