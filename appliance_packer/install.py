@@ -4,8 +4,23 @@
 姿态同 ``assert_schema_version``：fail-fast 且把能拿到的原因直接打出来，
 不让人在「启动了一半」的状态里自己排。
 
-步骤命令全部可被环境变量覆盖（``APPLIANCE_STEP_<NAME>``），因为客户机房的
-进程管理未必是 docker compose；默认值就是本仓 compose 的形态。
+## 为什么「PG 就绪」是单独一步而且必须等
+
+``docker compose up -d postgres`` 在容器进程起来时就返回，而 PG 还在做 initdb。
+紧接着跑 migrate 会得到一个「连上了但库不存在/还在恢复」的错误——那与「配置
+写错了」长得一模一样，是最容易让人排错排到天亮的一种。compose 里的
+``healthcheck`` 给了 ``pg_isready`` 判据，这一步就是等它。
+
+## 为什么 migrate 与 serve 是两个容器
+
+内核运行时绝不发 DDL（``db.py`` 的 ``migrate`` 注释：一次性、可重放、幂等）。
+把 migrate 塞进 serve 的启动路径，每次重启都要先抢一把 DDL 锁；而 compose 的
+``restart: unless-stopped`` 会让这件事周期性发生。
+
+## 步骤命令可用环境变量覆盖
+
+``APPLIANCE_STEP_<NAME>``（名字里的 ``-`` 换成 ``_`` 并大写）。客户机房的进程
+管理未必是 docker compose，但**步名不能改**——报错时点名的就是它。
 """
 
 from __future__ import annotations
@@ -15,16 +30,19 @@ import shlex
 import subprocess
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable, Sequence
 
-#: 默认步骤：名字即报错时点名的那个词，不要改成内部代号。
+#: 默认步骤。种子分两条：科目（seed-accounts，读迁移里的 SQL 函数）与汇率
+#: （seed-fx，读随包基线文件）。它们是两件不同的事，合成一步会让「缺了哪一个」
+#: 在失败时说不清。
 DEFAULT_STEPS: tuple[tuple[str, str], ...] = (
-    ("postgres", "docker compose up -d postgres"),
+    ("postgres", "docker compose up -d --wait postgres"),
     ("kernel-migrate", "docker compose run --rm kernel fd-erp-ledger-mcp migrate"),
-    ("seed-load", "docker compose run --rm kernel fd-erp-ledger-mcp seed --file /seed/chart-of-accounts.seed.json"),
-    ("paas-start", "docker compose up -d paas"),
-    ("health-check", "docker compose exec -T paas curl -fsS http://127.0.0.1:3000/api/config"),
+    ("seed-accounts", "docker compose run --rm kernel fd-erp-ledger-mcp seed-accounts"),
+    ("seed-fx", "docker compose run --rm kernel fd-erp-ledger-mcp seed-fx /seed/fx-baseline.seed.json"),
+    ("paas-start", "docker compose up -d --wait paas"),
+    ("health-check", "docker compose exec -T kernel-serve python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3).status==200 else 1)\""),
 )
 
 

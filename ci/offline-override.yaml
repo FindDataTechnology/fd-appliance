@@ -1,0 +1,29 @@
+# CI 专用 override：只改两件事，不动 base。
+#
+# 1. 用一条 `--internal` 网络顶掉默认 bridge。默认 bridge 有出网，那样「断网也能起来」
+#    这条判据就变成了假绿——验证的是 CI 碰巧有网，不是交付包不依赖网。
+# 2. 把 paas / kernel 的构建上下文指到 ci/ 的 stub。真实交付里那是随包的源码树
+#    （KERNEL_SRC / PAAS_SRC），公开 CI 里没有它们，本仓也不该引用私有仓。
+#
+# 用法：docker compose -f compose.yaml -f ../../ci/offline-override.yaml up -d --wait
+
+services:
+  kernel:
+    build:
+      context: ../../ci
+      dockerfile: stub.Dockerfile
+
+  kernel-serve:
+    build:
+      context: ../../ci
+      dockerfile: stub.Dockerfile
+
+  paas:
+    build:
+      context: ../../ci
+      dockerfile: stub.Dockerfile
+
+networks:
+  default:
+    external: true
+    name: appliance-ci

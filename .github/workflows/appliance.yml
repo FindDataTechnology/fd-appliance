@@ -1,0 +1,110 @@
+name: appliance
+
+# 真机验收（tasks 3.2/3.3/4.x）跑在这里，不跑在谁的笔记本上。
+#
+# 为什么必须在这里：判据是「断网也能起来」「镜像全部本地产」。这类判据要求一个
+# **干净**的 Docker——没被本地代理、私有 registry 凭证、预拉过的层污染。在开发机
+# 上验永远是自欺：本机拉过的层就在本地，断网也「通了」。2026-11-18 实测：一台
+# Windows 开发机连公开镜像都拉不了，而它的 docker 里"什么都有"。
+#
+# 三个 job：
+#   unit     —— packer 单测（产品面判据 + 装机编排）
+#   stack    —— 从源码构建整栈，然后在**只允许回环**的网络里拉起来验断网可用
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: appliance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest
+      - name: 单测
+        run: python -m pytest tests/ -q
+
+  stack:
+    runs-on: ubuntu-latest
+    env:
+      ERP_LEDGER_PASSWORD: ci-not-a-secret
+      ERP_TENANT_ID: acme
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 3.3 从源码构建整栈（装现场只 load，不 pull）
+        run: |
+          set -eux
+          cd tenants/erp
+          # paas / kernel 在真实交付里是随包的源码树（KERNEL_SRC / PAAS_SRC）。
+          # 公开 CI 没有它们，也不该引用私有仓，所以用 ci/ 的 stub 顶替——
+          # 这一步验的是"交付编排能构建出镜像"，不是那两棵树的业务代码。
+          docker compose -f compose.yaml -f ../../ci/offline-override.yaml build
+          docker images --format '{{.Repository}}:{{.Tag}} {{.Size}}'
+
+      - name: 3.2 建断网网络（--internal：无出网）
+        run: docker network create --internal appliance-ci
+
+      - name: 3.2/4.x 断网起栈
+        run: |
+          set -eux
+          cd tenants/erp
+          docker compose -f compose.yaml -f ../../ci/offline-override.yaml up -d --wait
+          docker compose -f compose.yaml -f ../../ci/offline-override.yaml ps
+
+      - name: 4.x 判据：PG 就绪 → 内核健康 → paas 产品面
+        run: |
+          set -eux
+          cd tenants/erp
+          C="docker compose -f compose.yaml -f ../../ci/offline-override.yaml"
+          $C exec -T postgres pg_isready -U erp -d erp_ledger
+          $C exec -T kernel-serve python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=5).status==200 else 1)"
+          $C exec -T paas node -e "fetch('http://127.0.0.1:3000/api/config').then(async r=>{if(!r.ok)throw new Error('config '+r.status); const j=await r.json(); console.log('config ok:', Object.keys(j).join(','));}).catch(e=>{console.error(e);process.exit(1)})"
+
+      - name: 断网实证（判据反了就是假绿）
+        run: |
+          set -eux
+          cd tenants/erp
+          C="docker compose -f compose.yaml -f ../../ci/offline-override.yaml"
+          # 这一步证明上一步的通是**因为不需要外网**，不是环境碰巧有网。
+          if $C exec -T paas node -e "fetch('https://example.com',{signal:AbortSignal.timeout(5000)}).then(()=>process.exit(0)).catch(()=>process.exit(1))"; then
+            echo "FAIL: 断网环境里能出网 —— 网络隔离没生效，本轮断网结论无效" >&2
+            exit 1
+          fi
+          echo "ok: 出网被拒，断网条件成立"
+
+      - name: 3.1 装机编排点名失败（真 docker 上验一次）
+        run: |
+          set -eux
+          C="docker compose -f tenants/erp/compose.yaml -f ci/offline-override.yaml"
+          cd tenants/erp
+          $C down -v
+          docker network rm appliance-ci || true
+          # PG 没起时跑 migrate 必须点名 kernel-migrate 并中止。
+          # 用 APPLIANCE_STEP_POSTGRES=true 跳过第一步，让它走到 migrate 去撞空库。
+          cd ../..
+          set +e
+          APPLIANCE_STEP_POSTGRES=true PYTHONPATH=. python -m appliance_packer install > /tmp/install.log 2>&1
+          rc=$?
+          set -e
+          cat /tmp/install.log
+          test "$rc" -ne 0 || { echo "FAIL: 编排没中止"; exit 1; }
+          grep -q "FAILED kernel-migrate" /tmp/install.log || { echo "FAIL: 没点名失败步骤"; exit 1; }
+          grep -q "后续步骤未执行" /tmp/install.log
+
+      - name: 收尾
+        if: always()
+        run: |
+          cd tenants/erp
+          docker compose -f compose.yaml -f ../../ci/offline-override.yaml logs --no-color --tail=200 || true
+          docker compose -f compose.yaml -f ../../ci/offline-override.yaml down -v || true
+          docker network rm appliance-ci || true

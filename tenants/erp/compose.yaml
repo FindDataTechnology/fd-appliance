@@ -1,0 +1,107 @@
+# ERP 机房版交付栈（最小可用形态）
+#
+# 就是 design D2 里那四项「缺一不成立」：postgres / paas / fd-erp-ledger-mcp / dsh 运行时
+# （dsh 随 paas 镜像，不是独立 service）。
+#
+# 三条硬约束，别顺手改掉：
+#  1. 不用 `image:` 里的公网仓库做运行时拉取——交付包里镜像是本地产的（task 3.3）。
+#     这里用 `build:` 段让 `docker compose build` 从源码产出，装现场只 load tar。
+#  2. 内核是**一进程一租户**（tenant_gate 比对 X-ERP-Tenant 与进程常量）。所以
+#     ERP_TENANT_ID 是部署常量，不是可变量；真多租户 = 每租户一份 kernel service。
+#  3. 初始化必须分阶段：PG 就绪 → migrate（DDL，一次性幂等）→ 种子 → paas。
+#     内核运行时绝不发 DDL，把 migrate 塞进 serve 的启动路径会让每次重启都持锁。
+#
+# 用法（装机编排调用，不手敲）：
+#   docker compose up -d postgres
+#   docker compose run --rm kernel fd-erp-ledger-mcp migrate
+#   docker compose run --rm kernel fd-erp-ledger-mcp seed-accounts
+#   docker compose run --rm kernel fd-erp-ledger-mcp seed-fx /seed/fx-baseline.seed.json
+#   docker compose up -d paas
+
+name: erp-appliance
+
+services:
+  postgres:
+    image: erp-appliance/postgres:16
+    build:
+      context: ./images/postgres
+    environment:
+      POSTGRES_DB: ${ERP_LEDGER_DB:-erp_ledger}
+      POSTGRES_USER: ${ERP_LEDGER_USER:-erp}
+      POSTGRES_PASSWORD: ${ERP_LEDGER_PASSWORD:?装机时必须给出数据库密码（不设默认值：默认密码是交付事故）}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # /data 是客户盘（PLATFORM_DATA_DIR 与备份脚本的落点），与 pgdata 分开：
+      # 备份要能只备份数据而不动卷
+      - ${APPLIANCE_DATA_DIR:-./data}:/data
+    healthcheck:
+      # 装机编排的「PG 就绪」判据就是它；没有它 up -d 立刻返回但 PG 还在初始化
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  kernel:
+    image: erp-appliance/erp-ledger-kernel:latest
+    build:
+      context: ${KERNEL_SRC:?指向 fd-erp-ledger-mcp 检出目录（交付包里是随包的源码树）}
+    environment:
+      ERP_LEDGER_DATABASE_URL: postgresql://${ERP_LEDGER_USER:-erp}:${ERP_LEDGER_PASSWORD}@postgres:5432/${ERP_LEDGER_DB:-erp_ledger}
+      ERP_TENANT_ID: ${ERP_TENANT_ID:?部署常量：一进程一租户}
+    volumes:
+      - ./seed:/seed:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["tools"]   # 只用于 migrate/seed 的一次性容器，不常驻
+    restart: "no"
+
+  kernel-serve:
+    image: erp-appliance/erp-ledger-kernel:latest
+    build:
+      context: ${KERNEL_SRC:?指向 fd-erp-ledger-mcp 检出目录}
+    environment:
+      ERP_LEDGER_DATABASE_URL: postgresql://${ERP_LEDGER_USER:-erp}:${ERP_LEDGER_PASSWORD}@postgres:5432/${ERP_LEDGER_DB:-erp_ledger}
+      ERP_TENANT_ID: ${ERP_TENANT_ID:?部署常量：一进程一租户}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=2).status==200 else 1)\""]
+      interval: 5s
+      timeout: 4s
+      retries: 24
+    restart: unless-stopped
+
+  paas:
+    image: erp-appliance/paas:latest
+    build:
+      context: ${PAAS_SRC:?指向 paas 检出目录}
+    environment:
+      # 机房版形态：不设 AUTH_MODE（默认 none）、不设 CLOUD_MODE。
+      # 2026-11-18 已用真机形态实测这四个面全部可用（design D1）。
+      PLATFORM_DATA_DIR: /data
+      ERP_API_UPSTREAM: http://kernel-serve:8000
+      ERP_TENANT_ID: ${ERP_TENANT_ID}
+      # 多租户时再加 ERP_API_UPSTREAM_MAP；单租户留空 = 与共享部署的单上游路径逐字节相同
+      ERP_API_UPSTREAM_MAP: ${ERP_API_UPSTREAM_MAP:-}
+      # LLM 是 cloud_locked：不配即 models:[]，对话不可用但产品面照常（如实降级，不冒充）
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+    volumes:
+      - ${APPLIANCE_DATA_DIR:-./data}:/data
+    ports:
+      - "${PAAS_PORT:-3000}:3000"
+    depends_on:
+      kernel-serve:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/api/config').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 36
+    restart: unless-stopped
+
+volumes:
+  pgdata:
