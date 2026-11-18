@@ -73,7 +73,9 @@ jobs:
           C="docker compose -f compose.yaml -f ../../ci/offline-override.yaml"
           $C exec -T postgres pg_isready -U erp -d erp_ledger
           $C exec -T kernel-serve python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=5).status==200 else 1)"
-          $C exec -T paas node -e "fetch('http://127.0.0.1:3000/api/config').then(async r=>{if(!r.ok)throw new Error('config '+r.status); const j=await r.json(); console.log('config ok:', Object.keys(j).join(','));}).catch(e=>{console.error(e);process.exit(1)})"
+          # 探测用 python 而非 node：stub 镜像是 python 的。真实 paas 镜像里两者都有，
+          # 但判据不该依赖容器里恰好装了哪个运行时。
+          $C exec -T paas python -c "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:3000/api/config',timeout=5)); print('config ok:', ','.join(d))"
 
       - name: 断网实证（判据反了就是假绿）
         run: |
@@ -81,11 +83,17 @@ jobs:
           cd tenants/erp
           C="docker compose -f compose.yaml -f ../../ci/offline-override.yaml"
           # 这一步证明上一步的通是**因为不需要外网**，不是环境碰巧有网。
-          if $C exec -T paas node -e "fetch('https://example.com',{signal:AbortSignal.timeout(5000)}).then(()=>process.exit(0)).catch(()=>process.exit(1))"; then
+          # python -c 出网成功返回 0、失败返回非 0（异常未捕获 = 非 0），
+          # 所以「成功」在这里就是红灯。
+          set +e
+          $C exec -T paas python -c "import urllib.request; urllib.request.urlopen('https://example.com', timeout=5)"
+          outbound_rc=$?
+          set -e
+          if [ "$outbound_rc" -eq 0 ]; then
             echo "FAIL: 断网环境里能出网 —— 网络隔离没生效，本轮断网结论无效" >&2
             exit 1
           fi
-          echo "ok: 出网被拒，断网条件成立"
+          echo "ok: 出网被拒（rc=$outbound_rc），断网条件成立"
 
       - name: 3.1 装机编排点名失败（真 docker 上验一次）
         run: |

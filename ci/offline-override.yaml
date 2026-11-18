@@ -1,11 +1,15 @@
-# CI 专用 override：只改两件事，不动 base。
+# CI 专用 override —— 只改三件事，不动 base 的业务定义。
 #
-# 1. 用一条 `--internal` 网络顶掉默认 bridge。默认 bridge 有出网，那样「断网也能起来」
-#    这条判据就变成了假绿——验证的是 CI 碰巧有网，不是交付包不依赖网。
+# 1. 用一条 `--internal` 网络顶掉默认 bridge。默认 bridge 有出网，那样「断网也能
+#    起来」这条判据就变成了假绿——验的是 CI 碰巧有网，不是交付包不依赖网。
 # 2. 把 paas / kernel 的构建上下文指到 ci/ 的 stub。真实交付里那是随包的源码树
-#    （KERNEL_SRC / PAAS_SRC），公开 CI 里没有它们，本仓也不该引用私有仓。
+#    （KERNEL_SRC / PAAS_SRC）；公开 CI 没有它们，本仓也不该引用私有仓。
+# 3. 覆盖 paas 的 healthcheck。base 用的是 `node -e fetch`（真实 paas 镜像里有
+#    node，所以那样是对的），但 stub 是 python 镜像。健康检查不该假设容器里有
+#    哪个运行时——CI 里这种不匹配会表现为「栈起不来」，而真因与栈无关。
 #
-# 用法：docker compose -f compose.yaml -f ../../ci/offline-override.yaml up -d --wait
+# 用法：
+#   docker compose -f compose.yaml -f ../../ci/offline-override.yaml up -d --wait
 
 services:
   kernel:
@@ -22,6 +26,8 @@ services:
     build:
       context: ../../ci
       dockerfile: stub.Dockerfile
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:3000/api/config',timeout=3).status==200 else 1)\""]
 
 networks:
   default:
